@@ -5,20 +5,20 @@ let motherCreature;
 let allChildren = [];
 
 let warmColorPalette = [
-  [255, 220, 200],
-  [255, 200, 230],
-  [255, 245, 180]
+  [255, 120, 80],
+  [255, 90, 150],
+  [255, 200, 50]
 ];   
 
 let coolColorPalette = [
-  [200, 240, 255],
-  [220, 200, 255],
-  [180, 255, 240]
-];   //store the colors
+  [80, 180, 255],
+  [100, 255, 220], 
+  [160, 120, 255]
+];   //store the colors 
 
 function setup() {
   let canvas = createCanvas(800, 500);
-  canvas.parent("p5-canvas-container");
+  canvas.parent("p5-canvas-container");//放入visual studio code时打开
   noStroke();
   pickColor();
   motherCreature = createCreature(400, 250, currentColor, true);  
@@ -60,7 +60,9 @@ function draw() {
 
   fill(255);
   textSize(15);
-  text('Press SPACE to generate new creatures and witness their life cycle', 20, 30);
+  textFont('Verdana');
+  text('Press SPACE or move your MOUSE to witness their life cycle.', 20, 30);
+  text('Find the correlation between the "personalities" and their colors.', 20 , 50);
 }
 
 function createCreature(xPosition, yPosition, colorValue, isMother) {
@@ -73,7 +75,7 @@ function createCreature(xPosition, yPosition, colorValue, isMother) {
   if (isMother === true) {
     baseSize = 40;
   } else {
-    baseSize = random(10, 30);
+    baseSize = random(20, 30);
   }
 
   let animationPhase = random(1000);
@@ -87,12 +89,20 @@ function createCreature(xPosition, yPosition, colorValue, isMother) {
   if (isMother === true) {
     lifespan = Infinity;
   } else {
-    lifespan = int(random(400, 600));
+    lifespan = int(random(200, 300));
   }
 
-  // return all the creatures' feature
+  let personality; // record the creature's personality
+  if (isWarmColorMode === true) {
+    personality = "warm";
+  } else {
+    personality = "cool";
+  }
+
+  let origin = { x: xPosition, y: yPosition }; // record the original location
+
   return [xPosition, yPosition, colorValue, isMother, transparency, baseSize,
-          animationPhase, isFading, isMoving, moveStart, moveEnd, moveProgress, lifespan];
+          animationPhase, isFading, isMoving, moveStart, moveEnd, moveProgress, lifespan, personality, origin];
 }
 
 function updateCreature(creature, timeCount) {
@@ -109,6 +119,8 @@ function updateCreature(creature, timeCount) {
   let moveEnd = creature[10];
   let moveProgress = creature[11];
   let lifespan = creature[12];
+  let personality = creature[13];
+  let origin = creature[14];
   
 // [0]x 坐标
 // [1]y 坐标
@@ -123,6 +135,8 @@ function updateCreature(creature, timeCount) {
 // [10]移动终点
 // [11]移动进度
 // [12]寿命（子代才有）
+// [13]性格（warm或cool）
+// [14]出生点（origin）
 
   // Reduce lifespan of the new generations
   if (isMother === false) {
@@ -149,6 +163,34 @@ function updateCreature(creature, timeCount) {
     }
   }
 
+  //mouse interaction based on individual personality
+  let distanceToMouse = dist(xPosition, yPosition, mouseX, mouseY);
+
+  if (personality === "warm") {
+    // warm creatures move toward the mouse until within a comfortable distance
+        if (distanceToMouse < 450) {
+            let moveX = (mouseX - xPosition) * 0.03;
+            let moveY = (mouseY - yPosition) * 0.03;
+            xPosition = xPosition + moveX;
+            yPosition = yPosition + moveY;
+        }
+  } 
+  else if (personality === "cool") {
+    // cool creatures move away if close to mouse, otherwise return to origin
+    if (distanceToMouse < 250) {
+      let moveX = (xPosition - mouseX) * 0.02;
+      let moveY = (yPosition - mouseY) * 0.02;
+      xPosition = xPosition + moveX;
+      yPosition = yPosition + moveY;
+    } else {
+      // slowly drift back to origin
+      let backX = (origin.x - xPosition) * 0.02;
+      let backY = (origin.y - yPosition) * 0.02;
+      xPosition = xPosition + backX;
+      yPosition = yPosition + backY;
+    }
+  }
+  
   //fade out
   if (isFading === true) {
     if (isMother === true) {
@@ -158,8 +200,9 @@ function updateCreature(creature, timeCount) {
     }
   }
 
+  // return all the creatures' feature
   return [xPosition, yPosition, colorValue, isMother, transparency, baseSize,
-          animationPhase, isFading, isMoving, moveStart, moveEnd, moveProgress, lifespan];
+          animationPhase, isFading, isMoving, moveStart, moveEnd, moveProgress, lifespan, personality, origin];
 }
 
 function drawCreature(creature, timeCount) {
@@ -169,6 +212,7 @@ function drawCreature(creature, timeCount) {
   let transparency = creature[4];
   let baseSize = creature[5];
   let animationPhase = creature[6];
+  let isMother = creature[3];
 
   //breathe
   let pulse = 1 + 0.1 * sin((timeCount + animationPhase) * 0.05);
@@ -198,11 +242,32 @@ function drawCreature(creature, timeCount) {
   //core
   fill(redValue, greenValue, blueValue, 250 * (transparency / 255));
   ellipse(0, 0, radius * 1.4, radius * 1.4);
+
+  //Extra pattern for mother creature only
+  if (isMother === true) {
+    let pulseAlpha = map(sin(timeCount * 0.04 + animationPhase), -1, 1, 30, 10);
+    stroke(255,255,255, pulseAlpha);
+    noFill();
+    strokeWeight(60);
+
+    // draw flowing lines from center to edge
+    for (let lineIndex = 0; lineIndex < 20; lineIndex += 1) {
+      let angle = (TWO_PI / 20) * lineIndex + sin(timeCount * 0.01) * 0.2;
+      let innerRadius = radius * 0.4;
+      let outerRadius = radius * (1.1 + 0.05 * sin(timeCount * 0.02 + lineIndex));
+      let x1 = cos(angle) * innerRadius;
+      let y1 = sin(angle) * innerRadius;
+      let x2 = cos(angle) * outerRadius;
+      let y2 = sin(angle) * outerRadius;
+      line(x1, y1, x2, y2);
+    }
+    noStroke();
+  }
+
   pop();
-}
+} 
 
 function selectClosestToCenter(childrenList) {
-  let minimumDistance = 999999;
   let chosenIndex = 0;
 
   for (let index = 0; index < childrenList.length; index++) {
@@ -212,7 +277,7 @@ function selectClosestToCenter(childrenList) {
     let distanceY = childY - 250;
     let distanceSquared = distanceX * distanceX + distanceY * distanceY;
 
-    if (distanceSquared < minimumDistance) {
+    if (distanceSquared < 999999999999999999999) {
       minimumDistance = distanceSquared;
       chosenIndex = index;
     }
