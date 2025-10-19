@@ -27,6 +27,15 @@ function setup() {
 
 function draw() {
   background(0);
+  // draw twinkling stars
+for (let i = 0; i < 120; i = i + 1) {
+  let starX = random(width);
+  let starY = random(height);
+  let starBrightness = 80 + 105 * sin((time + i * 5) * 0.01);
+  fill(starBrightness);
+  noStroke();
+  ellipse(starX, starY, 2, 2);
+}
   time += 1;    
   motherCreature = updateCreature(motherCreature, time);
   //update the situation of the mother creature
